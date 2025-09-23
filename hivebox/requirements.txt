@@ -1,2 +1,6 @@
 # Basic requirements for Phase 2
-# Additional dependencies will be added in later phases
+# Additional dependencies will be added in later phasesfastapi\nuvicorn[standard]
+flask==2.3.3
+   requests==2.31.0
+   python-dotenv==1.0.0
+   gunicorn==21.2.0

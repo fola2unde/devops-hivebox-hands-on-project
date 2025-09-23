@@ -1,0 +1,98 @@
+name: CI Pipeline
+   
+   on:
+     push:
+       branches: [ main, phase-* ]
+     pull_request:
+       branches: [ main ]
+   
+   jobs:
+     lint-and-test:
+       runs-on: ubuntu-latest
+       
+       steps:
+       - name: Checkout code
+         uses: actions/checkout@v4
+       
+       - name: Set up Python
+         uses: actions/setup-python@v4
+         with:
+           python-version: '3.11'
+       
+       - name: Install dependencies
+         run: |
+           python -m pip install --upgrade pip
+           pip install -r requirements-dev.txt
+       
+       - name: Lint code with flake8
+         run: |
+           flake8 app/ --count --select=E9,F63,F7,F82 --show-source --statistics
+           flake8 app/ --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics
+       
+       - name: Format check with black
+         run: |
+           black --check app/
+       
+       - name: Lint Dockerfile
+         uses: hadolint/hadolint-action@v3.1.0
+         with:
+           dockerfile: Dockerfile
+           failure-threshold: warning
+       
+       - name: Run unit tests
+         run: |
+           pytest tests/ -v --cov=app --cov-report=xml
+       
+       - name: Upload coverage to Codecov
+         uses: codecov/codecov-action@v3
+         with:
+           file: ./coverage.xml
+           fail_ci_if_error: true
+   
+     build-docker:
+       runs-on: ubuntu-latest
+       needs: lint-and-test
+       
+       steps:
+       - name: Checkout code
+         uses: actions/checkout@v4
+       
+       - name: Set up Docker Buildx
+         uses: docker/setup-buildx-action@v3
+       
+       - name: Build Docker image
+         run: |
+           docker build -t hivebox:${{ github.sha }} .
+       
+       - name: Test Docker image
+         run: |
+           docker run --rm hivebox:${{ github.sha }} python -m app.main --version
+       - name: Test version endpoint
+         run: |
+         docker run -d --name test-hivebox -p 5000:5000 hivebox:${{ github.sha }}
+          sleep 15
+          response=$(curl -s http://localhost:5000/version)
+          echo "Response: $response"
+          echo "$response" | jq -e '.version == "0.1.0"'
+          curl -f http://localhost:5000/health
+          docker stop test-hivebox
+          docker rm test-hivebox
+
+     security-scan:
+       runs-on: ubuntu-latest
+       
+       steps:
+       - name: Checkout code
+         uses: actions/checkout@v4
+       
+       - name: Run OpenSSF Scorecard
+         uses: ossf/scorecard-action@v2.3.1
+         with:
+           results_file: results.sarif
+           results_format: sarif
+           repo_token: ${{ secrets.SCORECARD_TOKEN }}
+       
+       - name: Upload SARIF results
+         uses: github/codeql-action/upload-sarif@v2
+         with:
+           sarif_file: results.sarif
