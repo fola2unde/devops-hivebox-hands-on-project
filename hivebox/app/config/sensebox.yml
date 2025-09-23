@@ -1,0 +1,13 @@
+# config/senseboxes.yml
+# List of senseBox IDs used by the HiveBox project
+# These IDs are public and safe to commit.
+senseboxes:
+  - id: "5eba5fbad46fb8001b799786"
+    alias: "Site A - Rooftop"
+    description: "Primary test senseBox"
+  - id: "5c21ff8f919bf8001adf2488"
+    alias: "Site B - Park"
+    description: "Secondary box for outdoor data"
+  - id: "5ade1acf223bd80019a1011c"
+    alias: "Site C - Lab"
+    description: "Indoor box for lab reference data"

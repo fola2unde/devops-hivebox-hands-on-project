@@ -1,0 +1,2 @@
+# Basic requirements for Phase 2
+# Additional dependencies will be added in later phases
