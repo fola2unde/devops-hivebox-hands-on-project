@@ -1,6 +1,6 @@
 # app/version.py
-__version__ = "0.1.0"  # Updated for Phase 3
-
+__version__ = "0.2.0"  # Updated for Phase 4
+   
 def get_version():
     return __version__
 

@@ -1,0 +1,70 @@
+# k8s/deployment.yaml
+   apiVersion: apps/v1
+   kind: Deployment
+   metadata:
+     name: hivebox
+     namespace: default
+     labels:
+       app: hivebox
+   spec:
+     replicas: 2
+     selector:
+       matchLabels:
+         app: hivebox
+     template:
+       metadata:
+         labels:
+           app: hivebox
+       spec:
+         securityContext:
+           runAsNonRoot: true
+           runAsUser: 1000
+           fsGroup: 1000
+         containers:
+         - name: hivebox
+           image: hivebox:0.2.0
+           imagePullPolicy: IfNotPresent
+           ports:
+           - containerPort: 5000
+             name: http
+           env:
+           - name: SENSEBOX_IDS
+             valueFrom:
+               configMapKeyRef:
+                 name: hivebox-config
+                 key: SENSEBOX_IDS
+           - name: TEMP_COLD_THRESHOLD
+             valueFrom:
+               configMapKeyRef:
+                 name: hivebox-config
+                 key: TEMP_COLD_THRESHOLD
+           - name: TEMP_HOT_THRESHOLD
+             valueFrom:
+               configMapKeyRef:
+                 name: hivebox-config
+                 key: TEMP_HOT_THRESHOLD
+           resources:
+             requests:
+               memory: "128Mi"
+               cpu: "100m"
+             limits:
+               memory: "256Mi"
+               cpu: "200m"
+           livenessProbe:
+             httpGet:
+               path: /health
+               port: 5000
+             initialDelaySeconds: 30
+             periodSeconds: 10
+           readinessProbe:
+             httpGet:
+               path: /health
+               port: 5000
+             initialDelaySeconds: 5
+             periodSeconds: 5
+           securityContext:
+             allowPrivilegeEscalation: false
+             readOnlyRootFilesystem: true
+             capabilities:
+               drop:
+               - ALL
