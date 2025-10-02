@@ -1,70 +1,92 @@
-# k8s/deployment.yaml
-   apiVersion: apps/v1
-   kind: Deployment
-   metadata:
-     name: hivebox
-     namespace: default
-     labels:
-       app: hivebox
-   spec:
-     replicas: 2
-     selector:
-       matchLabels:
-         app: hivebox
-     template:
-       metadata:
-         labels:
-           app: hivebox
-       spec:
-         securityContext:
-           runAsNonRoot: true
-           runAsUser: 1000
-           fsGroup: 1000
-         containers:
-         - name: hivebox
-           image: hivebox:0.2.0
-           imagePullPolicy: IfNotPresent
-           ports:
-           - containerPort: 5000
-             name: http
-           env:
-           - name: SENSEBOX_IDS
-             valueFrom:
-               configMapKeyRef:
-                 name: hivebox-config
-                 key: SENSEBOX_IDS
-           - name: TEMP_COLD_THRESHOLD
-             valueFrom:
-               configMapKeyRef:
-                 name: hivebox-config
-                 key: TEMP_COLD_THRESHOLD
-           - name: TEMP_HOT_THRESHOLD
-             valueFrom:
-               configMapKeyRef:
-                 name: hivebox-config
-                 key: TEMP_HOT_THRESHOLD
-           resources:
-             requests:
-               memory: "128Mi"
-               cpu: "100m"
-             limits:
-               memory: "256Mi"
-               cpu: "200m"
-           livenessProbe:
-             httpGet:
-               path: /health
-               port: 5000
-             initialDelaySeconds: 30
-             periodSeconds: 10
-           readinessProbe:
-             httpGet:
-               path: /health
-               port: 5000
-             initialDelaySeconds: 5
-             periodSeconds: 5
-           securityContext:
-             allowPrivilegeEscalation: false
-             readOnlyRootFilesystem: true
-             capabilities:
-               drop:
-               - ALL
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hivebox
+  namespace: default
+  labels:
+    app: hivebox
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: hivebox
+  template:
+    metadata:
+      labels:
+        app: hivebox
+    spec:
+      # Pod-level Security Context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      
+      # 1. DEFINE A TEMPORARY VOLUME (emptyDir)
+      volumes:
+      - name: tmp-volume
+        emptyDir: {}
+
+      containers:
+      - name: hivebox
+        image: hivebox:0.2.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5000
+          name: http
+        
+        # 2. MOUNT THE VOLUME to /tmp
+        volumeMounts:
+        - name: tmp-volume
+          mountPath: /tmp
+        
+        # 3. SET THE TMPDIR ENVIRONMENT VARIABLE (Optional but good practice)
+        env:
+        - name: TMPDIR
+          value: /tmp # Directs the application (Gunicorn) to use the mounted /tmp
+        - name: SENSEBOX_IDS
+          valueFrom:
+            configMapKeyRef:
+              name: hivebox-config
+              key: SENSEBOX_IDS
+        # ... (rest of environment variables) ...
+        - name: TEMP_COLD_THRESHOLD
+          valueFrom:
+            configMapKeyRef:
+              name: hivebox-config
+              key: TEMP_COLD_THRESHOLD
+        - name: TEMP_HOT_THRESHOLD
+          valueFrom:
+            configMapKeyRef:
+              name: hivebox-config
+              key: TEMP_HOT_THRESHOLD
+        
+        resources:
+          # ... (resources block remains the same) ...
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+            
+        livenessProbe:
+          # ... (probes block remains the same) ...
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 15
+          periodSeconds: 5
+          
+        # Container-level Security Context (remains the same)
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
