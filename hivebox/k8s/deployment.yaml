@@ -15,17 +15,6 @@ spec:
       labels:
         app: hivebox
     spec:
-      # Pod-level Security Context
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        fsGroup: 1000
-      
-      # 1. DEFINE A TEMPORARY VOLUME (emptyDir)
-      volumes:
-      - name: tmp-volume
-        emptyDir: {}
-
       containers:
       - name: hivebox
         image: hivebox:0.2.0
@@ -33,22 +22,12 @@ spec:
         ports:
         - containerPort: 5000
           name: http
-        
-        # 2. MOUNT THE VOLUME to /tmp
-        volumeMounts:
-        - name: tmp-volume
-          mountPath: /tmp
-        
-        # 3. SET THE TMPDIR ENVIRONMENT VARIABLE (Optional but good practice)
         env:
-        - name: TMPDIR
-          value: /tmp # Directs the application (Gunicorn) to use the mounted /tmp
         - name: SENSEBOX_IDS
           valueFrom:
             configMapKeyRef:
               name: hivebox-config
               key: SENSEBOX_IDS
-        # ... (rest of environment variables) ...
         - name: TEMP_COLD_THRESHOLD
           valueFrom:
             configMapKeyRef:
@@ -59,34 +38,26 @@ spec:
             configMapKeyRef:
               name: hivebox-config
               key: TEMP_HOT_THRESHOLD
-        
         resources:
-          # ... (resources block remains the same) ...
           requests:
             memory: "128Mi"
             cpu: "100m"
           limits:
             memory: "256Mi"
             cpu: "200m"
-            
         livenessProbe:
-          # ... (probes block remains the same) ...
           httpGet:
             path: /health
             port: 5000
           initialDelaySeconds: 30
           periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
         readinessProbe:
           httpGet:
             path: /health
             port: 5000
-          initialDelaySeconds: 15
+          initialDelaySeconds: 10
           periodSeconds: 5
-          
-        # Container-level Security Context (remains the same)
-        securityContext:
-          allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
-          capabilities:
-            drop:
-            - ALL
+          timeoutSeconds: 5
+          failureThreshold: 3
